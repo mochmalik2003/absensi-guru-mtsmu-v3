@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard Guru - Absensi Online</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Leaflet Map Mini untuk Verifikasi Posisi Guru -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f1f5f9;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 pb-10">
+
+  <!-- ================= HEADER ATAS ================= -->
+  <header class="bg-[#0b132b] text-white sticky top-0 z-30 shadow-md">
+    <div class="max-w-4xl mx-auto px-4 py-3.5 flex items-center justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden shrink-0 shadow">
+          <img id="guru-header-logo" src="" alt="Logo" class="w-full h-full object-contain hidden" />
+          <svg id="guru-default-logo" class="w-6 h-6 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
+          </svg>
+        </div>
+        <div class="min-w-0">
+          <p id="guru-app-title" class="text-[10px] font-bold uppercase tracking-widest text-sky-400 truncate">
+            ABSENSI GURU
+          </p>
+          <h1 id="guru-school-name" class="text-xs sm:text-sm font-bold text-white truncate">
+            MTs. MIFTAHUL ULUM
+          </h1>
+        </div>
+      </div>
+
+      <button id="btn-logout" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition flex items-center gap-1.5 shrink-0">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+        </svg>
+        <span>Keluar</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= KONTEN UTAMA GURU ================= -->
+  <main class="max-w-4xl mx-auto px-4 pt-5 space-y-5">
+
+    <!-- 1. Kartu Profil Guru & Jam Digital Real-Time -->
+    <section class="bg-gradient-to-br from-[#0b132b] via-slate-900 to-blue-950 rounded-2xl p-5 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div>
+        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
+          Akun Guru Terverifikasi
+        </span>
+        <h2 id="profil-nama-guru" class="text-lg sm:text-xl font-extrabold mt-1.5">Memuat Nama...</h2>
+        <p id="profil-jabatan-guru" class="text-xs text-slate-300">Guru Mata Pelajaran</p>
+      </div>
+
+      <div class="bg-white/10 backdrop-blur rounded-xl px-4 py-3 border border-white/10 text-left sm:text-right shrink-0">
+        <p id="jam-live" class="text-2xl sm:text-3xl font-extrabold tracking-wider text-sky-300 font-mono">00:00:00</p>
+        <p id="tanggal-live" class="text-[11px] text-slate-300 mt-0.5">-</p>
+      </div>
+    </section>
+
+    <!-- 2. 3 KARTU REKAP KEHADIRAN PRIBADI BULAN INI DI BAGIAN ATAS -->
+    <section class="grid grid-cols-3 gap-3">
+      <div class="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-4 text-white shadow-md">
+        <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-100">Hadir Bulan Ini</p>
+        <p id="guru-stat-hadir" class="text-2xl sm:text-3xl font-extrabold mt-0.5">0</p>
+        <p id="guru-label-bulan" class="text-[10px] text-blue-100 mt-0.5">-</p>
+      </div>
+
+      <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 p-4 text-white shadow-md">
+        <p class="text-[10px] font-semibold uppercase tracking-wider text-amber-100">Terlambat</p>
+        <p id="guru-stat-terlambat" class="text-2xl sm:text-3xl font-extrabold mt-0.5">0</p>
+        <p class="text-[10px] text-amber-100 mt-0.5">Reset tiap bulan</p>
+      </div>
+
+      <div class="rounded-2xl bg-gradient-to-br from-cyan-500 to-sky-700 p-4 text-white shadow-md">
+        <p class="text-[10px] font-semibold uppercase tracking-wider text-cyan-100">Izin / Sakit</p>
+        <p id="guru-stat-izin" class="text-2xl sm:text-3xl font-extrabold mt-0.5">0</p>
+        <p class="text-[10px] text-cyan-100 mt-0.5">Bulan berjalan</p>
+      </div>
+    </section>
+
+    <!-- Notifikasi Status Absensi -->
+    <div id="absen-alert" class="hidden px-4 py-3.5 rounded-2xl text-xs font-semibold border shadow-sm"></div>
+
+    <!-- 3. PANEL ABSEN MASUK & PULANG (WAJIB DI AREA SEKOLAH) -->
+    <section class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">Presensi Masuk & Pulang</h3>
+            <span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 text-[10px] font-bold border border-blue-200">
+              Wajib di Area Sekolah
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Jadwal hari ini: <strong id="jadwal-hari-ini-teks" class="text-emerald-700">07:20 - 12:10 WIB</strong>
+          </p>
+        </div>
+
+        <button type="button" id="btn-refresh-gps" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold border border-blue-200 transition self-start sm:self-auto">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+          </svg>
+          <span>Perbarui Lokasi GPS</span>
+        </button>
+      </div>
+
+      <!-- Indikator Jarak GPS terhadap Sekolah -->
+      <div id="box-status-gps" class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-start gap-3">
+          <div id="icon-status-gps" class="w-9 h-9 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+            </svg>
+          </div>
+          <div>
+            <p id="judul-status-gps" class="text-xs font-bold text-slate-800">Mendeteksi lokasi GPS Anda...</p>
+            <p id="detail-status-gps" class="text-[11px] text-slate-500 mt-0.5">Absen masuk & pulang hanya dapat dilakukan di dalam radius sekolah.</p>
+          </div>
+        </div>
+        <div class="text-left sm:text-right shrink-0">
+          <span id="badge-jarak-gps" class="px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700">
+            Menghitung...
+          </span>
+        </div>
+      </div>
+
+      <!-- Status Log Masuk & Pulang Hari Ini -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="p-3.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 text-center">
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-emerald-700">Jam Masuk Anda</p>
+          <p id="log-masuk-hari-ini" class="text-lg sm:text-xl font-extrabold text-slate-800 mt-1">-- : --</p>
+          <p id="log-status-hari-ini" class="text-[11px] text-slate-500 mt-0.5">Belum absen masuk</p>
+        </div>
+
+        <div class="p-3.5 rounded-xl bg-violet-50/70 border border-violet-200/80 text-center">
+          <p class="text-[11px] font-semibold uppercase tracking-wider text-violet-700">Jam Pulang Anda</p>
+          <p id="log-pulang-hari-ini" class="text-lg sm:text-xl font-extrabold text-slate-800 mt-1">-- : --</p>
+          <p id="log-ket-pulang" class="text-[11px] text-slate-500 mt-0.5">Belum absen pulang</p>
+        </div>
+      </div>
+
+      <!-- 2 Tombol Utama: Absen Masuk & Absen Pulang -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+        <button type="button" id="btn-absen-masuk"
+          class="py-4 px-5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2.5 transition disabled:opacity-45 disabled:cursor-not-allowed">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 9l-3 3m0 0l3 3m-3-3h7.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>ABSEN MASUK</span>
+        </button>
+
+        <button type="button" id="btn-absen-pulang"
+          class="py-4 px-5 rounded-2xl bg-gradient-to-r from-violet-600 to-purple-700 hover:from-violet-700 hover:to-purple-800 active:scale-[0.99] text-white font-bold text-sm shadow-lg shadow-violet-600/25 flex items-center justify-center gap-2.5 transition disabled:opacity-45 disabled:cursor-not-allowed">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12.75 15l3-3m0 0l-3-3m3 3h-7.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>ABSEN PULANG</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 4. PANEL PENGAJUAN IZIN / SAKIT (BEBAS LOKASI - BISA DARI MANA SAJA) -->
+    <section class="bg-sky-50/90 rounded-2xl border border-sky-200 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div class="flex items-start gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-sky-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <h3 class="text-xs sm:text-sm font-bold text-slate-900">Pengajuan Izin / Sakit Hari Ini</h3>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+              Bebas Lokasi (Dari Mana Saja)
+            </span>
+          </div>
+          <p class="text-[11px] text-slate-600 mt-0.5">
+            Jika sakit atau berhalangan hadir, Anda dapat mengirim keterangan izin/sakit dari rumah atau luar area sekolah.
+          </p>
+        </div>
+      </div>
+
+      <button type="button" id="btn-buka-modal-izin"
+        class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 active:scale-[0.99] text-white text-xs font-bold shadow-sm transition shrink-0 disabled:opacity-45 disabled:cursor-not-allowed">
+        + Ajukan Izin / Sakit
+      </button>
+    </section>
+
+    <!-- 5. TABEL RIWAYAT ABSENSI GURU BULAN INI -->
+    <section class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+      <div class="mb-3">
+        <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">Riwayat Absensi Anda Bulan Ini</h3>
+        <p class="text-xs text-slate-400">Otomatis dimulai dari awal saat berganti bulan</p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-xs">
+          <thead>
+            <tr class="bg-[#0b132b] text-white">
+              <th class="py-2.5 px-3 rounded-tl-lg font-semibold">Tanggal</th>
+              <th class="py-2.5 px-3 font-semibold text-center">Masuk</th>
+              <th class="py-2.5 px-3 font-semibold text-center">Pulang</th>
+              <th class="py-2.5 px-3 rounded-tr-lg font-semibold text-center">Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-riwayat-guru" class="divide-y divide-slate-100">
+            <tr><td colspan="4" class="py-6 text-center text-slate-400">Memuat riwayat...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 6. PETA LOKASI SEKOLAH VS POSISI GURU DI BAGIAN PALING BAWAH -->
+    <section class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
+      <div class="flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">Peta Titik Lokasi Absensi</h3>
+          <p class="text-xs text-slate-400">Lingkaran biru menunjukkan batas radius area sekolah yang ditetapkan Admin</p>
+        </div>
+      </div>
+
+      <div id="map-guru" class="w-full h-56 rounded-xl border border-slate-200 z-10 overflow-hidden"></div>
+    </section>
+
+  </main>
+
+  <!-- Modal Pengajuan Izin / Sakit (Tanpa Pembatasan Lokasi) -->
+  <div id="modal-izin" class="fixed inset-0 bg-slate-950/60 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+        <div>
+          <h4 class="text-sm font-bold text-slate-800">Pengajuan Izin / Sakit Hari Ini</h4>
+          <p class="text-[11px] text-emerald-700 font-medium">Dapat dikirim dari rumah / lokasi mana saja</p>
+        </div>
+        <button type="button" id="btn-tutup-modal-izin" class="text-slate-400 hover:text-slate-700 text-lg font-bold">&times;</button>
+      </div>
+
+      <form id="form-izin-guru" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Jenis Keterangan</label>
+          <select id="jenis-izin" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 text-xs font-semibold bg-white">
+            <option value="Izin">Izin (Keperluan Keluarga / Dinas Luar)</option>
+            <option value="Sakit">Sakit</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Alasan / Keterangan Singkat *</label>
+          <textarea id="keterangan-izin" rows="3" required placeholder="Tuliskan alasan izin atau sakit..."
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" id="btn-batal-izin" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Batal</button>
+          <button type="submit" id="btn-kirim-izin" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold">Kirim Keterangan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { supabase } from './js/supabase.js';
+
+    // Helper waktu zona Asia/Jakarta (WIB) agar konsisten di semua perangkat HP
+    function getWaktuWIB() {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      const parts = Object.fromEntries(formatter.formatToParts(now).map(p => [p.type, p.value]));
+      const isoTanggal = `${parts.year}-${parts.month}-${parts.day}`;
+      const awalBulan = `${parts.year}-${parts.month}-01`;
+      const akhirHari = new Date(Number(parts.year), Number(parts.month), 0).getDate();
+      const akhirBulan = `${parts.year}-${parts.month}-${String(akhirHari).padStart(2, '0')}`;
+      const jamMenitDetik = `${parts.hour}:${parts.minute}:${parts.second}`;
+      const jamMenit = `${parts.hour}:${parts.minute}`;
+
+      const namaHariArr = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const tglObj = new Date(`${isoTanggal}T12:00:00+07:00`);
+      const namaHari = namaHariArr[tglObj.getDay()];
+
+      const namaBulanArr = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      const labelBulan = `${namaBulanArr[Number(parts.month) - 1]} ${parts.year}`;
+
+      return { isoTanggal, awalBulan, akhirBulan, jamMenitDetik, jamMenit, namaHari, labelBulan };
+    }
+
+    async function initDashboardGuru() {
+      // ================= 1. CEK SESI & ROLE GURU =================
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.replace('index.html');
+        return;
+      }
+
+      const { data: profilGuru } = await supabase
+        .from('profiles')
+        .select('nama_lengkap, role, jabatan, nip')
+        .eq('id', session.user.id)
+        .single();
+
+      if (!profilGuru || profilGuru.role !== 'guru') {
+        await supabase.auth.signOut();
+        window.location.replace('index.html');
+        return;
+      }
+
+      document.getElementById('profil-nama-guru').textContent = profilGuru.nama_lengkap;
+      document.getElementById('profil-jabatan-guru').textContent =
+        `${profilGuru.jabatan || 'Guru'}${profilGuru.nip ? ` • NIP: ${profilGuru.nip}` : ''}`;
+
+      document.getElementById('btn-logout').addEventListener('click', async () => {
+        await supabase.auth.signOut();
+        window.location.replace('index.html');
+      });
+
+      // ================= 2. JAM DIGITAL REAL-TIME WIB =================
+      function updateJamLive() {
+        const wib = getWaktuWIB();
+        document.getElementById('jam-live').textContent = wib.jamMenitDetik;
+        document.getElementById('tanggal-live').textContent = new Date().toLocaleDateString('id-ID', {
+          timeZone: 'Asia/Jakarta',
+          weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+        });
+      }
+      updateJamLive();
+      setInterval(updateJamLive, 1000);
+
+      // ================= 3. MUAT PENGATURAN SEKOLAH =================
+      const { data: pengaturan } = await supabase
+        .from('pengaturan_sekolah')
+        .select('*')
+        .eq('id', 1)
+        .single();
+
+      if (pengaturan) {
+        document.getElementById('guru-app-title').textContent = pengaturan.nama_aplikasi || 'ABSENSI GURU';
+        document.getElementById('guru-school-name').textContent = pengaturan.nama_sekolah || 'MTs. MIFTAHUL ULUM';
+
+        if (pengaturan.logo_url) {
+          const imgLogo = document.getElementById('guru-header-logo');
+          imgLogo.src = pengaturan.logo_url;
+          imgLogo.classList.remove('hidden');
+          document.getElementById('guru-default-logo').classList.add('hidden');
+        }
+      }
+
+      const jadwalHarian = pengaturan?.jadwal_harian || {};
+      const wibAwal = getWaktuWIB();
+      document.getElementById('guru-label-bulan').textContent = wibAwal.labelBulan;
+
+      function getJadwalHariIni() {
+        const hariSekarang = getWaktuWIB().namaHari;
+        return {
+          hari: hariSekarang,
+          jadwal: jadwalHarian[hariSekarang] || { aktif: true, masuk: '07:20', pulang: '12:10' }
+        };
+      }
+
+      const infoJadwalAwal = getJadwalHariIni();
+      if (!infoJadwalAwal.jadwal.aktif) {
+        document.getElementById('jadwal-hari-ini-teks').textContent = `${infoJadwalAwal.hari} (Hari Libur)`;
+        document.getElementById('jadwal-hari-ini-teks').className = 'text-rose-600 font-bold';
+      } else {
+        document.getElementById('jadwal-hari-ini-teks').textContent =
+          `${infoJadwalAwal.jadwal.masuk} - ${infoJadwalAwal.jadwal.pulang} WIB`;
+      }
+
+      const sekolahLat = pengaturan?.latitude ?? -7.7543;
+      const sekolahLng = pengaturan?.longitude ?? 113.2159;
+      const radiusMaksimal = pengaturan?.radius_meter ?? 100;
+
+      // ================= 4. INISIALISASI PETA & GPS AKURASI TINGGI =================
+      const mapGuru = L.map('map-guru').setView([sekolahLat, sekolahLng], 17);
+      L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '&copy; Google Maps'
+      }).addTo(mapGuru);
+
+      L.circle([sekolahLat, sekolahLng], {
+        radius: radiusMaksimal,
+        color: '#2563eb',
+        fillColor: '#3b82f6',
+        fillOpacity: 0.22
+      }).addTo(mapGuru);
+
+      L.marker([sekolahLat, sekolahLng]).addTo(mapGuru).bindPopup('Titik Pusat Sekolah');
+
+      let markerPosisiGuru = null;
+      let posisiGuruSaatIni = null;
+
+      function hitungJarakMeter(lat1, lon1, lat2, lon2) {
+        const R = 6371000;
+        const toRad = (deg) => (deg * Math.PI) / 180;
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return Math.round(R * c);
+      }
+
+      function cekLokasiGPS() {
+        const judulGps = document.getElementById('judul-status-gps');
+        const detailGps = document.getElementById('detail-status-gps');
+        const badgeJarak = document.getElementById('badge-jarak-gps');
+        const iconGps = document.getElementById('icon-status-gps');
+        const boxGps = document.getElementById('box-status-gps');
+
+        judulGps.textContent = 'Mendeteksi titik GPS Anda...';
+        badgeJarak.textContent = 'Menghitung...';
+
+        if (!navigator.geolocation) {
+          judulGps.textContent = 'Perangkat tidak mendukung GPS';
+          detailGps.textContent = 'Gunakan smartphone atau browser modern dengan fitur lokasi.';
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const akurasi = Math.round(pos.coords.accuracy || 0);
+            const jarak = hitungJarakMeter(lat, lng, sekolahLat, sekolahLng);
+            const sah = jarak <= radiusMaksimal;
+
+            posisiGuruSaatIni = { lat, lng, jarakMeter: jarak, dalamRadius: sah, akurasi };
+
+            if (markerPosisiGuru) {
+              markerPosisiGuru.setLatLng([lat, lng]);
+            } else {
+              markerPosisiGuru = L.circleMarker([lat, lng], {
+                radius: 8,
+                color: '#ffffff',
+                weight: 2,
+                fillColor: sah ? '#10b981' : '#ef4444',
+                fillOpacity: 1
+              }).addTo(mapGuru).bindPopup('Posisi Anda Sekarang');
+            }
+
+            mapGuru.fitBounds([
+              [sekolahLat, sekolahLng],
+              [lat, lng]
+            ], { padding: [35, 35], maxZoom: 18 });
+
+            if (sah) {
+              boxGps.className = 'p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+              iconGps.className = 'w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 mt-0.5';
+              judulGps.textContent = 'Anda berada di dalam area sekolah';
+              detailGps.textContent = `Jarak ${jarak} m dari sekolah (Batas ${radiusMaksimal} m • Akurasi GPS ±${akurasi} m).`;
+              badgeJarak.className = 'px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white';
+              badgeJarak.textContent = `Sah (${jarak} m)`;
+            } else {
+              boxGps.className = 'p-3.5 rounded-xl bg-rose-50 border border-rose-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+              iconGps.className = 'w-9 h-9 rounded-full bg-rose-600 text-white flex items-center justify-center shrink-0 mt-0.5';
+              judulGps.textContent = 'Anda berada di LUAR area sekolah!';
+              detailGps.textContent = `Jarak ${jarak} m (batas ${radiusMaksimal} m). Absen masuk/pulang terkunci, namun Anda tetap bisa mengajukan Izin/Sakit di bawah.`;
+              badgeJarak.className = 'px-3 py-1 rounded-full text-xs font-bold bg-rose-600 text-white';
+              badgeJarak.textContent = `Di Luar Area (${jarak} m)`;
+            }
+          },
+          () => {
+            posisiGuruSaatIni = null;
+            boxGps.className = 'p-3.5 rounded-xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3';
+            judulGps.textContent = 'Izin lokasi GPS belum aktif';
+            detailGps.textContent = 'Aktifkan GPS untuk Absen Masuk/Pulang. Pengajuan Izin/Sakit dapat langsung diajukan di bawah tanpa GPS.';
+            badgeJarak.className = 'px-3 py-1 rounded-full text-xs font-bold bg-amber-500 text-white';
+            badgeJarak.textContent = 'GPS Nonaktif';
+          },
+          { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+        );
+      }
+
+      document.getElementById('btn-refresh-gps').addEventListener('click', cekLokasiGPS);
+      cekLokasiGPS();
+
+      // ================= 5. ALERT NOTIFIKASI =================
+      const absenAlert = document.getElementById('absen-alert');
+      function tampilkanAlert(pesan, tipe = 'sukses') {
+        absenAlert.textContent = pesan;
+        absenAlert.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-300', 'text-emerald-800', 'bg-rose-50', 'border-rose-300', 'text-rose-800');
+        if (tipe === 'sukses') {
+          absenAlert.classList.add('bg-emerald-50', 'border-emerald-300', 'text-emerald-800');
+        } else {
+          absenAlert.classList.add('bg-rose-50', 'border-rose-300', 'text-rose-800');
+        }
+        absenAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+
+      // ================= 6. MUAT DATA ABSENSI GURU BULAN INI =================
+      let logHariIni = null;
+
+      async function muatDataAbsensiGuru() {
+        const wib = getWaktuWIB();
+        document.getElementById('guru-label-bulan').textContent = wib.labelBulan;
+
+        const { data: riwayatBulan } = await supabase
+          .from('absensi')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .gte('tanggal', wib.awalBulan)
+          .lte('tanggal', wib.akhirBulan)
+          .order('tanggal', { ascending: false });
+
+        const list = riwayatBulan || [];
+
+        const jmlHadir = list.filter(r => r.status === 'Hadir' || r.status === 'Terlambat').length;
+        const jmlTerlambat = list.filter(r => r.status === 'Terlambat').length;
+        const jmlIzin = list.filter(r => r.status === 'Izin' || r.status === 'Sakit').length;
+
+        document.getElementById('guru-stat-hadir').textContent = jmlHadir;
+        document.getElementById('guru-stat-terlambat').textContent = jmlTerlambat;
+        document.getElementById('guru-stat-izin').textContent = jmlIzin;
+
+        logHariIni = list.find(r => r.tanggal === wib.isoTanggal) || null;
+        const btnMasuk = document.getElementById('btn-absen-masuk');
+        const btnPulang = document.getElementById('btn-absen-pulang');
+        const btnIzin = document.getElementById('btn-buka-modal-izin');
+        const { jadwal } = getJadwalHariIni();
+
+        if (!jadwal.aktif) {
+          btnMasuk.disabled = true;
+          btnPulang.disabled = true;
+          btnIzin.disabled = true;
+          document.getElementById('log-status-hari-ini').textContent = 'Hari Libur';
+          document.getElementById('log-ket-pulang').textContent = 'Hari Libur';
+        } else if (!logHariIni) {
+          document.getElementById('log-masuk-hari-ini').textContent = '-- : --';
+          document.getElementById('log-status-hari-ini').textContent = 'Belum absen masuk';
+          document.getElementById('log-pulang-hari-ini').textContent = '-- : --';
+          document.getElementById('log-ket-pulang').textContent = 'Menunggu absen masuk';
+          btnMasuk.disabled = false;
+          btnPulang.disabled = true;
+          btnIzin.disabled = false;
+        } else if (logHariIni.status === 'Izin' || logHariIni.status === 'Sakit') {
+          document.getElementById('log-masuk-hari-ini').textContent = logHariIni.status;
+          document.getElementById('log-status-hari-ini').textContent = logHariIni.keterangan || '-';
+          document.getElementById('log-pulang-hari-ini').textContent = '-';
+          document.getElementById('log-ket-pulang').textContent = 'Tidak perlu absen pulang';
+          btnMasuk.disabled = true;
+          btnPulang.disabled = true;
+          btnIzin.disabled = true;
+          btnIzin.textContent = `Sudah Tercatat (${logHariIni.status})`;
+        } else {
+          document.getElementById('log-masuk-hari-ini').textContent = `${logHariIni.jam_masuk.slice(0, 5)} WIB`;
+          document.getElementById('log-status-hari-ini').textContent =
+            `${logHariIni.status}${logHariIni.jarak_masuk_meter != null ? ` (${logHariIni.jarak_masuk_meter} m)` : ''}`;
+          btnMasuk.disabled = true;
+          btnIzin.disabled = true;
+
+          if (logHariIni.jam_pulang) {
+            document.getElementById('log-pulang-hari-ini').textContent = `${logHariIni.jam_pulang.slice(0, 5)} WIB`;
+            document.getElementById('log-ket-pulang').textContent =
+              `Tercatat${logHariIni.jarak_pulang_meter != null ? ` (${logHariIni.jarak_pulang_meter} m)` : ''}`;
+            btnPulang.disabled = true;
+          } else {
+            document.getElementById('log-pulang-hari-ini').textContent = '-- : --';
+            document.getElementById('log-ket-pulang').textContent = 'Siap absen pulang';
+            btnPulang.disabled = false;
+          }
+        }
+
+        const tbody = document.getElementById('tbody-riwayat-guru');
+        if (list.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-400">Belum ada catatan absensi pada bulan ini.</td></tr>`;
+        } else {
+          const warnaBadge = {
+            'Hadir': 'bg-emerald-100 text-emerald-700',
+            'Terlambat': 'bg-amber-100 text-amber-700',
+            'Izin': 'bg-sky-100 text-sky-700',
+            'Sakit': 'bg-indigo-100 text-indigo-700',
+            'Alpa': 'bg-rose-100 text-rose-700'
+          };
+          tbody.innerHTML = list.map(item => {
+            const tglLabel = new Date(item.tanggal + 'T00:00:00').toLocaleDateString('id-ID', {
+              weekday: 'short', day: 'numeric', month: 'short'
+            });
+            return `
+              <tr class="hover:bg-slate-50">
+                <td class="py-2.5 px-3 font-medium text-slate-800">
+                  ${tglLabel}
+                  ${item.keterangan ? `<span class="block text-[10px] text-slate-400">${item.keterangan}</span>` : ''}
+                </td>
+                <td class="py-2.5 px-3 text-center font-semibold text-emerald-700">${item.jam_masuk ? item.jam_masuk.slice(0, 5) : '-'}</td>
+                <td class="py-2.5 px-3 text-center font-semibold text-violet-700">${item.jam_pulang ? item.jam_pulang.slice(0, 5) : '-'}</td>
+                <td class="py-2.5 px-3 text-center">
+                  <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${warnaBadge[item.status] || 'bg-slate-100'}">${item.status}</span>
+                </td>
+              </tr>
+            `;
+          }).join('');
+        }
+      }
+
+      // ================= 7. AKSI TOMBOL ABSEN MASUK =================
+      let sedangProses = false;
+
+      document.getElementById('btn-absen-masuk').addEventListener('click', async () => {
+        if (sedangProses) return;
+
+        const wib = getWaktuWIB();
+        const { hari, jadwal } = getJadwalHariIni();
+
+        if (!jadwal.aktif) {
+          tampilkanAlert(`Hari ${hari} adalah hari libur sesuai pengaturan sekolah.`, 'error');
+          return;
+        }
+
+        if (!posisiGuruSaatIni) {
+          cekLokasiGPS();
+          tampilkanAlert('Lokasi GPS belum terdeteksi. Aktifkan izin lokasi browser lalu klik Perbarui Lokasi GPS.', 'error');
+          return;
+        }
+
+        if (!posisiGuruSaatIni.dalamRadius) {
+          tampilkanAlert(
+            `ABSEN MASUK DITOLAK! Posisi Anda berada ${posisiGuruSaatIni.jarakMeter} meter dari sekolah (batas maksimal ${radiusMaksimal} meter).`,
+            'error'
+          );
+          return;
+        }
+
+        sedangProses = true;
+        const btn = document.getElementById('btn-absen-masuk');
+        btn.disabled = true;
+
+        const statusMasuk = wib.jamMenit > jadwal.masuk ? 'Terlambat' : 'Hadir';
+
+        const { error } = await supabase.from('absensi').insert({
+          user_id: session.user.id,
+          tanggal: wib.isoTanggal,
+          jam_masuk: wib.jamMenitDetik,
+          status: statusMasuk,
+          lat_masuk: posisiGuruSaatIni.lat,
+          lng_masuk: posisiGuruSaatIni.lng,
+          jarak_masuk_meter: posisiGuruSaatIni.jarakMeter
+        });
+
+        sedangProses = false;
+
+        if (error) {
+          if (error.code === '23505') {
+            tampilkanAlert('Anda sudah tercatat melakukan presensi hari ini.', 'error');
+          } else {
+            tampilkanAlert(`Gagal mencatat absen masuk: ${error.message}`, 'error');
+            btn.disabled = false;
+          }
+          await muatDataAbsensiGuru();
+          return;
+        }
+
+        tampilkanAlert(
+          `Absen Masuk berhasil dicatat pukul ${wib.jamMenit} WIB (${statusMasuk}) pada jarak ${posisiGuruSaatIni.jarakMeter} meter dari sekolah.`,
+          'sukses'
+        );
+        await muatDataAbsensiGuru();
+      });
+
+      // ================= 8. AKSI TOMBOL ABSEN PULANG =================
+      document.getElementById('btn-absen-pulang').addEventListener('click', async () => {
+        if (sedangProses) return;
+
+        if (!logHariIni) {
+          tampilkanAlert('Anda belum melakukan Absen Masuk hari ini.', 'error');
+          return;
+        }
+
+        if (!posisiGuruSaatIni) {
+          cekLokasiGPS();
+          tampilkanAlert('Lokasi GPS belum terdeteksi. Aktifkan izin lokasi browser lalu coba lagi.', 'error');
+          return;
+        }
+
+        if (!posisiGuruSaatIni.dalamRadius) {
+          tampilkanAlert(
+            `ABSEN PULANG DITOLAK! Posisi Anda berada ${posisiGuruSaatIni.jarakMeter} meter dari sekolah (batas maksimal ${radiusMaksimal} meter).`,
+            'error'
+          );
+          return;
+        }
+
+        sedangProses = true;
+        const btn = document.getElementById('btn-absen-pulang');
+        btn.disabled = true;
+
+        const wib = getWaktuWIB();
+
+        const { error } = await supabase
+          .from('absensi')
+          .update({
+            jam_pulang: wib.jamMenitDetik,
+            lat_pulang: posisiGuruSaatIni.lat,
+            lng_pulang: posisiGuruSaatIni.lng,
+            jarak_pulang_meter: posisiGuruSaatIni.jarakMeter
+          })
+          .eq('id', logHariIni.id);
+
+        sedangProses = false;
+
+        if (error) {
+          tampilkanAlert(`Gagal mencatat absen pulang: ${error.message}`, 'error');
+          btn.disabled = false;
+          return;
+        }
+
+        tampilkanAlert(
+          `Absen Pulang berhasil dicatat pukul ${wib.jamMenit} WIB pada jarak ${posisiGuruSaatIni.jarakMeter} meter dari sekolah.`,
+          'sukses'
+        );
+        await muatDataAbsensiGuru();
+      });
+
+      // ================= 9. PENGAJUAN IZIN / SAKIT (BEBAS LOKASI) =================
+      const modalIzin = document.getElementById('modal-izin');
+      document.getElementById('btn-buka-modal-izin').addEventListener('click', () => {
+        if (logHariIni) {
+          tampilkanAlert('Anda sudah memiliki catatan kehadiran hari ini.', 'error');
+          return;
+        }
+        modalIzin.classList.remove('hidden');
+      });
+      document.getElementById('btn-tutup-modal-izin').addEventListener('click', () => modalIzin.classList.add('hidden'));
+      document.getElementById('btn-batal-izin').addEventListener('click', () => modalIzin.classList.add('hidden'));
+
+      document.getElementById('form-izin-guru').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (sedangProses) return;
+
+        sedangProses = true;
+        const btnKirim = document.getElementById('btn-kirim-izin');
+        btnKirim.disabled = true;
+        btnKirim.textContent = 'Mengirim...';
+
+        const wib = getWaktuWIB();
+        const jenis = document.getElementById('jenis-izin').value;
+        const ket = document.getElementById('keterangan-izin').value.trim();
+
+        const { error } = await supabase.from('absensi').insert({
+          user_id: session.user.id,
+          tanggal: wib.isoTanggal,
+          status: jenis,
+          keterangan: ket
+        });
+
+        sedangProses = false;
+        btnKirim.disabled = false;
+        btnKirim.textContent = 'Kirim Keterangan';
+        modalIzin.classList.add('hidden');
+
+        if (error) {
+          if (error.code === '23505') {
+            tampilkanAlert('Anda sudah memiliki catatan presensi pada hari ini.', 'error');
+          } else {
+            tampilkanAlert(`Gagal mengirim pengajuan: ${error.message}`, 'error');
+          }
+          await muatDataAbsensiGuru();
+          return;
+        }
+
+        tampilkanAlert(`Pengajuan ${jenis} hari ini berhasil dicatat dan otomatis masuk ke rekap Admin.`, 'sukses');
+        await muatDataAbsensiGuru();
+      });
+
+      await muatDataAbsensiGuru();
+    }
+
+    initDashboardGuru();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Panel Admin - Absensi Guru</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background-color: #f1f5f9;
+    }
+    .nav-active {
+      background: linear-gradient(90deg, #2563eb 0%, #3b82f6 100%);
+      color: #ffffff;
+      box-shadow: 0 6px 16px -4px rgba(37, 99, 235, 0.55);
+    }
+    .leaflet-control-layers {
+      border-radius: 10px !important;
+      border: none !important;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22) !important;
+      font-family: 'Poppins', sans-serif !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      padding: 6px 10px !important;
+    }
+
+    /* Ukuran Kertas Pratinjau & PDF */
+    .kertas-a4 {
+      width: 210mm;
+      min-height: 297mm;
+    }
+    .kertas-f4 {
+      width: 215mm;
+      min-height: 330mm;
+    }
+
+    /* Pengaturan Khusus saat Cetak ke Driver Printer */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #area-cetak-laporan, #area-cetak-laporan * {
+        visibility: visible;
+      }
+      body {
+        background: #ffffff !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      #area-cetak-laporan {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100% !important;
+        box-shadow: none !important;
+        border: none !important;
+        padding: 10mm 12mm !important;
+        margin: 0 !important;
+      }
+    }
+  </style>
+  <style id="dynamic-page-size">
+    @page {
+      size: A4 portrait;
+      margin: 10mm;
+    }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800 flex flex-col lg:flex-row">
+
+  <!-- Backdrop Mobile -->
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-950/60 z-30 hidden lg:hidden"></div>
+
+  <!-- ================= SIDEBAR PINGGIR ================= -->
+  <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-64 bg-[#0b132b] text-white flex flex-col justify-between transform -translate-x-full lg:translate-x-0 transition-transform duration-200 shrink-0">
+    <div>
+      <!-- Brand Logo & Nama Sekolah -->
+      <div class="px-5 py-6 border-b border-slate-800/80 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-11 h-11 rounded-xl bg-white p-1 flex items-center justify-center overflow-hidden shrink-0 shadow">
+            <img id="sidebar-logo" src="" alt="Logo" class="w-full h-full object-contain hidden" />
+            <svg id="sidebar-default-logo" class="w-6 h-6 text-emerald-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <p id="sidebar-app-title" class="text-[10px] font-bold uppercase tracking-widest text-sky-400 truncate">
+              ABSENSI GURU
+            </p>
+            <h1 id="sidebar-school-name" class="text-xs font-bold leading-snug text-white line-clamp-2">
+              MTs. MIFTAHUL ULUM
+            </h1>
+          </div>
+        </div>
+
+        <button id="btn-close-sidebar" class="lg:hidden text-slate-400 hover:text-white p-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Menu Navigasi Admin -->
+      <nav class="p-4 space-y-2">
+        <button type="button" id="menu-dashboard" onclick="bukaHalaman('dashboard')"
+          class="nav-active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+          </svg>
+          <span>Dashboard</span>
+        </button>
+
+        <button type="button" id="menu-guru" onclick="bukaHalaman('guru')"
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/70 hover:text-white transition">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+          </svg>
+          <span>Tambah Akun Guru</span>
+        </button>
+
+        <button type="button" id="menu-laporan" onclick="bukaHalaman('laporan')"
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/70 hover:text-white transition">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+          </svg>
+          <span>Laporan & Cetak</span>
+        </button>
+
+        <button type="button" id="menu-pengaturan" onclick="bukaHalaman('pengaturan')"
+          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/70 hover:text-white transition">
+          <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <span>Pengaturan</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- Info Akun Admin & Tombol Keluar -->
+    <div class="p-4 border-t border-slate-800/80 space-y-3">
+      <div class="bg-slate-900/90 rounded-xl p-3 border border-slate-800">
+        <p id="admin-name" class="text-xs font-semibold text-white truncate">Memuat...</p>
+        <p class="text-[11px] text-emerald-400">Administrator Aktif</p>
+      </div>
+      <button id="btn-logout" class="w-full py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold transition flex items-center justify-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+        </svg>
+        <span>Keluar</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ================= AREA KONTEN KANAN ================= -->
+  <div class="flex-1 flex flex-col min-w-0">
+
+    <!-- Header Mobile -->
+    <header class="lg:hidden bg-[#0b132b] text-white px-4 py-3 flex items-center justify-between sticky top-0 z-20 shadow">
+      <button id="btn-open-sidebar" class="p-2 rounded-lg bg-slate-800 text-white">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+        </svg>
+      </button>
+      <span id="mobile-header-title" class="text-sm font-bold tracking-wide">MTs. MIFTAHUL ULUM</span>
+      <div class="w-9"></div>
+    </header>
+
+    <!-- ========================================================= -->
+    <!-- HALAMAN 1: DASHBOARD REKAP ADMIN                          -->
+    <!-- ========================================================= -->
+    <main id="section-dashboard" class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2.5 flex-wrap">
+            <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+              DASHBOARD REKAP KEHADIRAN
+            </h2>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800">
+              Reset Otomatis Tiap Bulan
+            </span>
+          </div>
+          <p class="text-xs text-slate-500 mt-0.5">
+            Laporan rekapitulasi angka guru hadir & pulang periode <strong id="label-bulan-aktif" class="text-slate-700">-</strong>
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="bg-white border border-slate-200 rounded-xl px-3.5 py-2 shadow-sm">
+            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Hari Ini</p>
+            <p id="label-tanggal-hari-ini" class="text-xs font-bold text-slate-700">-</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl px-3.5 py-2 shadow-sm">
+            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Jadwal Hari Ini</p>
+            <p id="label-jadwal-kerja" class="text-xs font-bold text-emerald-700">07:20 - 12:10 WIB</p>
+          </div>
+          <div class="bg-white border border-slate-200 rounded-xl px-3.5 py-2 shadow-sm">
+            <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Radius GPS</p>
+            <p id="label-radius-dashboard" class="text-xs font-bold text-blue-700">100 Meter</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5 Kartu Ringkasan Warna-Warni -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
+        <div class="rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 p-4 text-white shadow-lg shadow-blue-600/20 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-blue-100">Total Hadir (Bulan Ini)</p>
+            <p id="stat-hadir-bulan" class="text-2xl font-extrabold leading-tight mt-0.5">0</p>
+            <p id="stat-bulan-teks" class="text-[11px] text-blue-100 mt-0.5">Periode berjalan</p>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 p-4 text-white shadow-lg shadow-emerald-600/20 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-100">Guru Hadir Hari Ini</p>
+            <p id="stat-masuk-hari-ini" class="text-2xl font-extrabold leading-tight mt-0.5">0 <span class="text-xs font-medium">Guru</span></p>
+            <p id="info-jam-masuk" class="text-[11px] text-emerald-100 mt-0.5">Batas masuk: 07:20</p>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800 p-4 text-white shadow-lg shadow-violet-600/20 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-purple-100">Guru Pulang Hari Ini</p>
+            <p id="stat-pulang-hari-ini" class="text-2xl font-extrabold leading-tight mt-0.5">0 <span class="text-xs font-medium">Guru</span></p>
+            <p id="info-jam-pulang" class="text-[11px] text-purple-100 mt-0.5">Jadwal pulang: 12:10</p>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 p-4 text-white shadow-lg shadow-orange-500/20 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-amber-100">Terlambat (Bulan Ini)</p>
+            <p id="stat-terlambat-bulan" class="text-2xl font-extrabold leading-tight mt-0.5">0</p>
+            <p class="text-[11px] text-amber-100 mt-0.5">Otomatis reset tiap bulan</p>
+          </div>
+        </div>
+
+        <div class="rounded-2xl bg-gradient-to-br from-cyan-500 to-sky-700 p-4 text-white shadow-lg shadow-cyan-600/20 flex items-center gap-3.5">
+          <div class="w-11 h-11 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-cyan-100">Izin / Sakit (Bulan Ini)</p>
+            <p id="stat-izinsakit-bulan" class="text-2xl font-extrabold leading-tight mt-0.5">0</p>
+            <p id="stat-total-guru" class="text-[11px] text-cyan-100 mt-0.5">Dari 0 Guru terdaftar</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Baris Tengah: Grafik + Waktu Absen Hari Ini -->
+      <section class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col justify-between">
+          <div>
+            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">Ringkasan Kehadiran Bulan Ini</h3>
+            <p class="text-xs text-slate-400 mt-0.5">Proporsi status absensi periode berjalan</p>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 items-center gap-4 my-4">
+            <div class="relative w-40 h-40 mx-auto">
+              <canvas id="chartRingkasan"></canvas>
+              <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span id="donut-total" class="text-2xl font-extrabold text-slate-800">0</span>
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Total Log</span>
+              </div>
+            </div>
+
+            <div class="space-y-2.5 text-xs">
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-2 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>Tepat Waktu</span>
+                <strong id="legend-hadir" class="text-slate-800">0</strong>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-2 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span>Terlambat</span>
+                <strong id="legend-terlambat" class="text-slate-800">0</strong>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-2 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span>Izin / Sakit</span>
+                <strong id="legend-izinsakit" class="text-slate-800">0</strong>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-2 text-slate-600"><span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span>Alpa</span>
+                <strong id="legend-alpa" class="text-slate-800">0</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+            <span>Siklus: Tgl 1 s/d Akhir Bulan</span>
+            <span id="reset-countdown" class="font-semibold text-emerald-700">-</span>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm flex flex-col">
+          <div class="flex items-center justify-between gap-2 mb-4">
+            <div>
+              <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">Waktu Absen Masuk & Pulang Hari Ini</h3>
+              <p class="text-xs text-slate-400 mt-0.5">Catatan jam kehadiran & jarak lokasi GPS guru</p>
+            </div>
+            <span class="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[11px] font-semibold">Live Hari Ini</span>
+          </div>
+
+          <div class="overflow-x-auto flex-1">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-[#0b132b] text-white">
+                  <th class="py-2.5 px-3 rounded-tl-lg font-semibold">Nama Guru</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Absen Masuk</th>
+                  <th class="py-2.5 px-3 font-semibold text-center">Absen Pulang</th>
+                  <th class="py-2.5 px-3 rounded-tr-lg font-semibold text-center">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tabel-hari-ini" class="divide-y divide-slate-100">
+                <tr><td colspan="4" class="py-8 text-center text-slate-400">Memuat data kehadiran hari ini...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Baris Bawah: Rekap Total Hadir 1 Bulan -->
+      <section class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+        <div class="mb-4">
+          <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">
+            Rekap Kehadiran Guru Bulan <span id="judul-tabel-bulan">-</span>
+          </h3>
+          <p class="text-xs text-slate-400 mt-0.5">Akumulasi otomatis selama 1 bulan berjalan (kembali ke 0 saat berganti bulan)</p>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#0b132b] text-white">
+                <th class="py-3 px-3.5 rounded-tl-lg font-semibold">No</th>
+                <th class="py-3 px-3.5 font-semibold">Nama Guru</th>
+                <th class="py-3 px-3.5 font-semibold text-center">Total Hadir</th>
+                <th class="py-3 px-3.5 font-semibold text-center">Terlambat</th>
+                <th class="py-3 px-3.5 font-semibold text-center">Izin / Sakit</th>
+                <th class="py-3 px-3.5 font-semibold text-center">Absen Masuk Terakhir</th>
+                <th class="py-3 px-3.5 rounded-tr-lg font-semibold text-center">Absen Pulang Terakhir</th>
+              </tr>
+            </thead>
+            <tbody id="tabel-rekap-bulan" class="divide-y divide-slate-100">
+              <tr><td colspan="7" class="py-8 text-center text-slate-400">Memuat rekap bulanan...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- HALAMAN 2: TAMBAH AKUN GURU & DAFTAR GURU                 -->
+    <!-- ========================================================= -->
+    <main id="section-guru" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+      <div>
+        <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+          TAMBAH & KELOLA AKUN GURU
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Daftarkan email dan password guru agar dapat masuk ke halaman absensi guru.
+        </p>
+      </div>
+
+      <div id="guru-alert" class="hidden px-4 py-3 rounded-xl text-xs font-medium border"></div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+
+        <!-- Form Tambah Akun Guru -->
+        <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
+          <div class="border-b border-slate-100 pb-3">
+            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">Buat Akun Guru Baru</h3>
+            <p class="text-xs text-slate-400">Akun langsung aktif dan siap digunakan login.</p>
+          </div>
+
+          <form id="form-tambah-guru" class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Nama Lengkap & Gelar *</label>
+              <input type="text" id="guru-nama" required placeholder="Contoh: Ahmad Fauzi, S.Pd."
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">NIP / NUPTK (Opsional)</label>
+                <input type="text" id="guru-nip" placeholder="Nomor induk"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Jabatan / Mapel</label>
+                <input type="text" id="guru-jabatan" value="Guru Mata Pelajaran"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Email Login Guru *</label>
+              <input type="email" id="guru-email" required placeholder="contoh: ahmad.guru@gmail.com"
+                class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Kata Sandi Login * (Min. 6 karakter)</label>
+              <div class="relative">
+                <input type="password" id="guru-password" required minlength="6" placeholder="Minimal 6 karakter"
+                  class="w-full px-3.5 py-2.5 pr-10 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+                <button type="button" id="toggle-guru-pass" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-700">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" id="btn-simpan-guru"
+              class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-xs font-semibold shadow-md shadow-blue-600/20 transition disabled:opacity-60">
+              + Daftarkan Akun Guru
+            </button>
+          </form>
+        </section>
+
+        <!-- Tabel Daftar Guru Terdaftar -->
+        <section class="lg:col-span-7 bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">
+                Daftar Akun Guru (<span id="jumlah-guru-badge">0</span>)
+              </h3>
+              <p class="text-xs text-slate-400">Guru terdaftar di bawah ini sudah bisa login lewat tab Akun Guru.</p>
+            </div>
+            <input type="text" id="cari-guru-input" placeholder="Cari nama / email..."
+              class="px-3 py-1.5 rounded-lg border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-[#0b132b] text-white">
+                  <th class="py-2.5 px-3 rounded-tl-lg font-semibold">No</th>
+                  <th class="py-2.5 px-3 font-semibold">Nama & Jabatan</th>
+                  <th class="py-2.5 px-3 font-semibold">Email Login</th>
+                  <th class="py-2.5 px-3 rounded-tr-lg font-semibold text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-daftar-guru" class="divide-y divide-slate-100">
+                <tr><td colspan="4" class="py-8 text-center text-slate-400">Memuat daftar guru...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- HALAMAN 3: LAPORAN & CETAK REKAP BULANAN                  -->
+    <!-- ========================================================= -->
+    <main id="section-laporan" class="hidden flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+      <div>
+        <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+          LAPORAN & CETAK REKAP BULANAN
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Filter rekap kehadiran guru per bulan, cetak langsung ke driver printer, atau unduh file PDF siap cetak.
+        </p>
+      </div>
+
+      <!-- Baris Filter Bulan, Ukuran Kertas & Tombol Aksi Cetak/PDF -->
+      <section class="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col lg:flex-row lg:items-end justify-between gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Pilih Bulan</label>
+            <select id="filter-laporan-bulan" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="0">Januari</option>
+              <option value="1">Februari</option>
+              <option value="2">Maret</option>
+              <option value="3">April</option>
+              <option value="4">Mei</option>
+              <option value="5">Juni</option>
+              <option value="6">Juli</option>
+              <option value="7">Agustus</option>
+              <option value="8">September</option>
+              <option value="9">Oktober</option>
+              <option value="10">November</option>
+              <option value="11">Desember</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Pilih Tahun</label>
+            <select id="filter-laporan-tahun" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <!-- Diisi otomatis -->
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-1">Ukuran Kertas Cetak</label>
+            <select id="pilih-ukuran-kertas" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs font-semibold bg-white focus:ring-2 focus:ring-blue-500 outline-none">
+              <option value="a4">A4 (210 x 297 mm)</option>
+              <option value="f4">F4 / Folio (215 x 330 mm)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+          <button type="button" id="btn-muat-laporan"
+            class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold transition">
+            Tampilkan
+          </button>
+
+          <button type="button" id="btn-download-pdf"
+            class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 transition disabled:opacity-60">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            <span id="txt-download-pdf">Download PDF</span>
+          </button>
+
+          <button type="button" id="btn-cetak-printer"
+            class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm flex items-center gap-1.5 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+            </svg>
+            <span>Cetak ke Printer</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Lembar Pratinjau Laporan Siap Cetak & PDF -->
+      <div class="overflow-x-auto pb-4">
+        <div id="area-cetak-laporan" class="kertas-a4 mx-auto bg-white border border-slate-200 shadow-md p-8 sm:p-10 text-slate-900">
+
+          <!-- Kop Laporan -->
+          <div class="flex items-center gap-4 border-b-2 border-slate-900 pb-4 mb-6">
+            <img id="kop-logo-laporan" src="" alt="Logo Sekolah" class="w-16 h-16 object-contain hidden shrink-0" />
+            <div class="flex-1 text-center">
+              <p id="kop-app-laporan" class="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+                SISTEM ABSENSI GURU
+              </p>
+              <h3 id="kop-sekolah-laporan" class="text-lg sm:text-xl font-extrabold uppercase tracking-wide text-slate-900">
+                MTs. MIFTAHUL ULUM
+              </h3>
+              <p class="text-xs font-semibold text-slate-700 mt-1">
+                REKAPITULASI KEHADIRAN GURU BULAN <span id="kop-periode-laporan" class="uppercase">-</span>
+              </p>
+            </div>
+          </div>
+
+          <!-- Tabel Laporan Sesuai Format: No, Nama Lengkap Guru, Hadir (Bulan Ini), Izin -->
+          <table class="w-full border-collapse border border-slate-800 text-xs">
+            <thead>
+              <tr class="bg-slate-100 text-slate-900">
+                <th class="border border-slate-800 py-2.5 px-3 text-center w-12 font-bold">No</th>
+                <th class="border border-slate-800 py-2.5 px-4 text-left font-bold">Nama Lengkap Guru</th>
+                <th class="border border-slate-800 py-2.5 px-4 text-center w-36 font-bold">Jumlah Hadir</th>
+                <th class="border border-slate-800 py-2.5 px-4 text-center w-36 font-bold">Jumlah Izin</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-laporan-cetak">
+              <tr>
+                <td colspan="4" class="border border-slate-800 py-8 text-center text-slate-400">
+                  Memuat data rekapitulasi...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Keterangan & Tanda Tangan -->
+          <div class="mt-8 flex justify-between items-start text-xs">
+            <div class="text-[11px] text-slate-500">
+              <p>* Jumlah Hadir mencakup kehadiran tepat waktu dan terlambat.</p>
+              <p>* Jumlah Izin mencakup keterangan izin dan sakit pada bulan bersangkutan.</p>
+            </div>
+
+            <div class="text-center w-56">
+              <p id="tanggal-ttd-laporan">Dicetak tanggal -</p>
+              <p class="font-semibold mt-0.5">Kepala Madrasah / Sekolah,</p>
+              <div class="h-16"></div>
+              <p class="font-bold underline">...........................................</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </main>
+
+    <!-- ========================================================= -->
+    <!-- HALAMAN 4: PENGATURAN (Identitas, Jam Harian, Google Maps)-->
+    <!-- ========================================================= -->
+    <main id="section-pengaturan" class="hidden flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+      <div>
+        <h2 class="text-xl sm:text-2xl font-extrabold tracking-tight text-slate-900">
+          PENGATURAN SEKOLAH, JAM & LOKASI MAPS
+        </h2>
+        <p class="text-xs text-slate-500 mt-0.5">
+          Atur identitas sekolah, jadwal masuk/pulang harian, serta titik lokasi Google Maps tempat guru diperbolehkan absen.
+        </p>
+      </div>
+
+      <div id="settings-alert" class="hidden px-4 py-3 rounded-xl text-xs font-medium border"></div>
+
+      <form id="form-pengaturan" class="space-y-6">
+
+        <!-- KARTU 1: IDENTITAS & LOGO SEKOLAH -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-5">
+          <div class="border-b border-slate-100 pb-3">
+            <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">1. Identitas & Logo Sekolah</h3>
+            <p class="text-xs text-slate-400">Perubahan akan otomatis tampil di Halaman Login, Dashboard, dan Kop Laporan.</p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            <div class="md:col-span-4 flex flex-col items-center text-center p-4 rounded-2xl bg-slate-50 border border-dashed border-slate-300">
+              <div class="w-24 h-24 rounded-full bg-white shadow border border-slate-200 p-2 flex items-center justify-center overflow-hidden mb-3">
+                <img id="preview-logo" src="" alt="Preview Logo" class="w-full h-full object-contain hidden" />
+                <svg id="preview-default-logo" class="w-11 h-11 text-emerald-700" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" />
+                </svg>
+              </div>
+
+              <label for="input-logo-file" class="cursor-pointer px-3.5 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold transition shadow-sm">
+                Pilih Gambar Logo
+              </label>
+              <input type="file" id="input-logo-file" accept="image/png, image/jpeg, image/webp" class="hidden" />
+              <p id="nama-file-logo" class="text-[11px] text-slate-400 mt-2">PNG / JPG (Maks. 2MB)</p>
+            </div>
+
+            <div class="md:col-span-8 space-y-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Judul Aplikasi (Sub-judul atas)</label>
+                <input type="text" id="input-nama-aplikasi" required placeholder="Contoh: ABSENSI GURU"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1.5">Nama Sekolah / Madrasah</label>
+                <input type="text" id="input-nama-sekolah" required placeholder="Contoh: MTs. MIFTAHUL ULUM"
+                  class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-sm font-semibold focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KARTU 2: JADWAL JAM MASUK & PULANG SETIAP HARINYA -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">2. Jadwal Jam Masuk & Jam Pulang Harian</h3>
+              <p class="text-xs text-slate-400">Tetapkan batas jam masuk dan jam pulang untuk masing-masing hari.</p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 bg-slate-50 p-2 rounded-xl border border-slate-200">
+              <input type="time" id="bulk-masuk" value="07:20" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-semibold" />
+              <span class="text-xs text-slate-400">-</span>
+              <input type="time" id="bulk-pulang" value="12:10" class="px-2 py-1 rounded-lg border border-slate-300 text-xs font-semibold" />
+              <button type="button" id="btn-terapkan-semua" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-[11px] font-semibold transition">
+                Samakan Hari Aktif
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-[#0b132b] text-white">
+                  <th class="py-2.5 px-3.5 rounded-tl-lg font-semibold">Hari</th>
+                  <th class="py-2.5 px-3.5 font-semibold text-center">Status Hari Kerja</th>
+                  <th class="py-2.5 px-3.5 font-semibold text-center">Jam Absen Masuk</th>
+                  <th class="py-2.5 px-3.5 rounded-tr-lg font-semibold text-center">Jam Absen Pulang</th>
+                </tr>
+              </thead>
+              <tbody id="tbody-jadwal-harian" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- KARTU 3: TITIK LOKASI GOOGLE MAPS & RADIUS ABSENSI -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 sm:p-6 shadow-sm space-y-5">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-sm font-bold uppercase tracking-wide text-slate-800">3. Titik Lokasi Absen (Google Maps)</h3>
+              <p class="text-xs text-slate-400">Cari nama tempat, tempel link Google Maps, atau geser pin merah langsung pada peta.</p>
+            </div>
+            <a id="btn-buka-gmaps" href="https://maps.google.com" target="_blank" rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-semibold border border-emerald-200 transition">
+              Buka di Google Maps
+            </a>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <div class="md:col-span-6">
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">Cari Nama Sekolah / Desa / Alamat</label>
+              <div class="flex gap-1.5">
+                <input type="text" id="input-cari-peta" placeholder="Ketik nama tempat, misal: Banjarsari"
+                  class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+                <button type="button" id="btn-cari-peta" class="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shrink-0">
+                  Cari
+                </button>
+              </div>
+            </div>
+
+            <div class="md:col-span-6">
+              <label class="block text-[11px] font-semibold text-slate-600 mb-1">Atau Tempel Link Google Maps / Gunakan GPS</label>
+              <div class="flex gap-1.5">
+                <input type="text" id="input-link-maps" placeholder="https://www.google.com/maps/@-7.xxx,113.xxx..."
+                  class="w-full px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs focus:ring-2 focus:ring-blue-500 outline-none" />
+                <button type="button" id="btn-ekstrak-link" class="px-2.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold shrink-0">
+                  Link
+                </button>
+                <button type="button" id="btn-gps-sekarang" class="px-2.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shrink-0">
+                  GPS Saya
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <p class="text-[11px] text-slate-500 mb-2">
+              Gunakan tombol <strong>Satelit</strong> di pojok kanan atas peta untuk melihat atap gedung sekolah, lalu klik atau geser pin merah tepat ke lokasi sekolah:
+            </p>
+            <div id="map-sekolah" class="w-full h-80 rounded-2xl border border-slate-300 z-10 overflow-hidden shadow-inner"></div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Latitude (Garis Lintang)</label>
+              <input type="number" step="any" id="input-latitude" required
+                class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Longitude (Garis Bujur)</label>
+              <input type="number" step="any" id="input-longitude" required
+                class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Radius Toleransi Absen (Meter)</label>
+              <input type="number" min="10" max="5000" id="input-radius" required value="100"
+                class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold text-blue-700 focus:ring-2 focus:ring-blue-500 outline-none" />
+            </div>
+          </div>
+        </div>
+
+        <div class="flex justify-end">
+          <button type="submit" id="btn-simpan-pengaturan"
+            class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white text-xs sm:text-sm font-semibold shadow-lg shadow-blue-600/25 flex items-center gap-2 transition disabled:opacity-60">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            <span id="text-simpan-pengaturan">Simpan Semua Pengaturan</span>
+          </button>
+        </div>
+
+      </form>
+    </main>
+
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    import { supabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './js/supabase.js';
+
+    const supabaseSignupClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false }
+    });
+
+    // ================= 1. CEK SESI & ROLE ADMIN =================
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      window.location.replace('index.html');
+    }
+
+    const { data: profilAdmin } = await supabase
+      .from('profiles')
+      .select('nama_lengkap, role')
+      .eq('id', session.user.id)
+      .single();
+
+    if (profilAdmin?.role !== 'admin') {
+      await supabase.auth.signOut();
+      window.location.replace('index.html');
+    }
+
+    document.getElementById('admin-name').textContent = profilAdmin.nama_lengkap;
+
+    document.getElementById('btn-logout').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      window.location.replace('index.html');
+    });
+
+    // ================= 2. NAVIGASI SIDEBAR =================
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const menus = {
+      dashboard: document.getElementById('menu-dashboard'),
+      guru: document.getElementById('menu-guru'),
+      laporan: document.getElementById('menu-laporan'),
+      pengaturan: document.getElementById('menu-pengaturan')
+    };
+    const sections = {
+      dashboard: document.getElementById('section-dashboard'),
+      guru: document.getElementById('section-guru'),
+      laporan: document.getElementById('section-laporan'),
+      pengaturan: document.getElementById('section-pengaturan')
+    };
+
+    let mapInstance = null;
+    let mapMarker = null;
+    let mapCircle = null;
+
+    function tutupSidebarMobile() {
+      sidebar.classList.add('-translate-x-full');
+      backdrop.classList.add('hidden');
+    }
+
+    document.getElementById('btn-open-sidebar').addEventListener('click', () => {
+      sidebar.classList.remove('-translate-x-full');
+      backdrop.classList.remove('hidden');
+    });
+    document.getElementById('btn-close-sidebar').addEventListener('click', tutupSidebarMobile);
+    backdrop.addEventListener('click', tutupSidebarMobile);
+
+    window.bukaHalaman = function(halaman) {
+      const kelasAktif = 'nav-active w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold transition';
+      const kelasNonAktif = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800/70 hover:text-white transition';
+
+      Object.keys(sections).forEach(key => {
+        if (key === halaman) {
+          sections[key].classList.remove('hidden');
+          menus[key].className = kelasAktif;
+        } else {
+          sections[key].classList.add('hidden');
+          menus[key].className = kelasNonAktif;
+        }
+      });
+
+      if (halaman === 'pengaturan') {
+        setTimeout(() => {
+          if (mapInstance) mapInstance.invalidateSize();
+        }, 150);
+      } else if (halaman === 'laporan') {
+        muatLaporanBulanan();
+      }
+      tutupSidebarMobile();
+    };
+
+    // ================= 3. VARIABEL WAKTU & HARI INI =================
+    const sekarang = new Date();
+    const tahun = sekarang.getFullYear();
+    const bulanIndex = sekarang.getMonth();
+    const bulanAngka = String(bulanIndex + 1).padStart(2, '0');
+    const tanggalAngka = String(sekarang.getDate()).padStart(2, '0');
+
+    const hariIniISO = `${tahun}-${bulanAngka}-${tanggalAngka}`;
+    const awalBulanISO = `${tahun}-${bulanAngka}-01`;
+    const akhirHariBulanIni = new Date(tahun, bulanIndex + 1, 0).getDate();
+    const akhirBulanISO = `${tahun}-${bulanAngka}-${String(akhirHariBulanIni).padStart(2, '0')}`;
+
+    const namaHariDariIndex = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const urutanHariKerja = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+    const namaHariIni = namaHariDariIndex[sekarang.getDay()];
+
+    const namaBulanID = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    const labelBulanTahun = `${namaBulanID[bulanIndex]} ${tahun}`;
+    const sisaHariReset = akhirHariBulanIni - sekarang.getDate() + 1;
+
+    document.getElementById('label-bulan-aktif').textContent = labelBulanTahun;
+    document.getElementById('stat-bulan-teks').textContent = `Bulan ${labelBulanTahun}`;
+    document.getElementById('judul-tabel-bulan').textContent = labelBulanTahun;
+    document.getElementById('reset-countdown').textContent = `Reset dalam ${sisaHariReset} hari`;
+    document.getElementById('label-tanggal-hari-ini').textContent = sekarang.toLocaleDateString('id-ID', {
+      weekday: 'long', day: 'numeric', month: 'short', year: 'numeric'
+    });
+    document.getElementById('tanggal-ttd-laporan').textContent = `Probolinggo, ${sekarang.toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'long', year: 'numeric'
+    })}`;
+
+    // ================= 4. MUAT & TERAPKAN PENGATURAN SEKOLAH =================
+    const defaultJadwal = {
+      Senin:  { aktif: true,  masuk: '07:20', pulang: '12:10' },
+      Selasa: { aktif: true,  masuk: '07:20', pulang: '12:10' },
+      Rabu:   { aktif: true,  masuk: '07:20', pulang: '12:10' },
+      Kamis:  { aktif: true,  masuk: '07:20', pulang: '12:10' },
+      Jumat:  { aktif: true,  masuk: '07:20', pulang: '11:00' },
+      Sabtu:  { aktif: true,  masuk: '07:20', pulang: '12:10' },
+      Minggu: { aktif: false, masuk: '07:20', pulang: '12:10' }
+    };
+
+    let pengaturanSaatIni = null;
+
+    function terapkanIdentitasKeUI(data) {
+      const appTitle = data.nama_aplikasi || 'ABSENSI GURU';
+      const schoolName = data.nama_sekolah || 'MTs. MIFTAHUL ULUM';
+
+      document.getElementById('sidebar-app-title').textContent = appTitle;
+      document.getElementById('sidebar-school-name').textContent = schoolName;
+      document.getElementById('mobile-header-title').textContent = schoolName;
+      document.getElementById('kop-app-laporan').textContent = appTitle;
+      document.getElementById('kop-sekolah-laporan').textContent = schoolName;
+
+      if (data.logo_url) {
+        const sLogo = document.getElementById('sidebar-logo');
+        const pLogo = document.getElementById('preview-logo');
+        const kLogo = document.getElementById('kop-logo-laporan');
+        sLogo.src = data.logo_url;
+        pLogo.src = data.logo_url;
+        kLogo.src = data.logo_url;
+        sLogo.classList.remove('hidden');
+        pLogo.classList.remove('hidden');
+        kLogo.classList.remove('hidden');
+        document.getElementById('sidebar-default-logo').classList.add('hidden');
+        document.getElementById('preview-default-logo').classList.add('hidden');
+      }
+
+      const jadwal = data.jadwal_harian || defaultJadwal;
+      const jadwalHariIni = jadwal[namaHariIni] || { aktif: true, masuk: '07:20', pulang: '12:10' };
+
+      if (!jadwalHariIni.aktif) {
+        document.getElementById('label-jadwal-kerja').textContent = `${namaHariIni} (Libur)`;
+        document.getElementById('info-jam-masuk').textContent = 'Hari libur';
+        document.getElementById('info-jam-pulang').textContent = 'Hari libur';
+      } else {
+        document.getElementById('label-jadwal-kerja').textContent = `${jadwalHariIni.masuk} - ${jadwalHariIni.pulang} WIB`;
+        document.getElementById('info-jam-masuk').textContent = `Batas masuk: ${jadwalHariIni.masuk}`;
+        document.getElementById('info-jam-pulang').textContent = `Jadwal pulang: ${jadwalHariIni.pulang}`;
+      }
+
+      const radius = data.radius_meter || 100;
+      document.getElementById('label-radius-dashboard').textContent = `${radius} Meter`;
+    }
+
+    function renderTabelJadwalForm(jadwalObj) {
+      const tbody = document.getElementById('tbody-jadwal-harian');
+      tbody.innerHTML = urutanHariKerja.map(hari => {
+        const item = jadwalObj[hari] || defaultJadwal[hari];
+        return `
+          <tr class="hover:bg-slate-50" data-hari="${hari}">
+            <td class="py-3 px-3.5 font-bold text-slate-800">${hari}</td>
+            <td class="py-3 px-3.5 text-center">
+              <label class="inline-flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" class="chk-aktif w-4 h-4 accent-emerald-600 rounded" ${item.aktif ? 'checked' : ''} />
+                <span class="label-status text-[11px] font-semibold ${item.aktif ? 'text-emerald-700' : 'text-rose-600'}">
+                  ${item.aktif ? 'Hari Kerja' : 'Libur'}
+                </span>
+              </label>
+            </td>
+            <td class="py-3 px-3.5 text-center">
+              <input type="time" class="inp-masuk px-2.5 py-1.5 rounded-lg border border-slate-300 font-semibold text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
+                value="${item.masuk}" ${item.aktif ? '' : 'disabled'} />
+            </td>
+            <td class="py-3 px-3.5 text-center">
+              <input type="time" class="inp-pulang px-2.5 py-1.5 rounded-lg border border-slate-300 font-semibold text-slate-700 disabled:bg-slate-100 disabled:text-slate-400"
+                value="${item.pulang}" ${item.aktif ? '' : 'disabled'} />
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      tbody.querySelectorAll('tr').forEach(row => {
+        const chk = row.querySelector('.chk-aktif');
+        const lbl = row.querySelector('.label-status');
+        const inpM = row.querySelector('.inp-masuk');
+        const inpP = row.querySelector('.inp-pulang');
+
+        chk.addEventListener('change', () => {
+          const aktif = chk.checked;
+          lbl.textContent = aktif ? 'Hari Kerja' : 'Libur';
+          lbl.className = `label-status text-[11px] font-semibold ${aktif ? 'text-emerald-700' : 'text-rose-600'}`;
+          inpM.disabled = !aktif;
+          inpP.disabled = !aktif;
+        });
+      });
+    }
+
+    document.getElementById('btn-terapkan-semua').addEventListener('click', () => {
+      const m = document.getElementById('bulk-masuk').value;
+      const p = document.getElementById('bulk-pulang').value;
+      if (!m || !p) return;
+
+      document.querySelectorAll('#tbody-jadwal-harian tr').forEach(row => {
+        if (row.querySelector('.chk-aktif').checked) {
+          row.querySelector('.inp-masuk').value = m;
+          row.querySelector('.inp-pulang').value = p;
+        }
+      });
+    });
+
+    // ================= 5. PETA BERGAYA GOOGLE MAPS & SATELIT =================
+    const inpLat = document.getElementById('input-latitude');
+    const inpLng = document.getElementById('input-longitude');
+    const inpRadius = document.getElementById('input-radius');
+    const btnBukaGmaps = document.getElementById('btn-buka-gmaps');
+
+    const googleRedPin = L.divIcon({
+      className: '',
+      html: `<svg width="34" height="44" viewBox="0 0 24 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 3px 4px rgba(0,0,0,0.4));">
+               <path d="M12 0C5.37 0 0 5.37 0 12C0 21 12 32 12 32C12 32 24 21 24 12C24 5.37 18.63 0 12 0Z" fill="#EA4335"/>
+               <circle cx="12" cy="11.5" r="4.5" fill="#811B13"/>
+             </svg>`,
+      iconSize: [34, 44],
+      iconAnchor: [17, 44]
+    });
+
+    function updatePetaDanLink(lat, lng, radiusMeter, geserPeta = true) {
+      const la = parseFloat(lat);
+      const ln = parseFloat(lng);
+      const rad = parseInt(radiusMeter, 10) || 100;
+      if (isNaN(la) || isNaN(ln)) return;
+
+      inpLat.value = la.toFixed(6);
+      inpLng.value = ln.toFixed(6);
+      btnBukaGmaps.href = `https://www.google.com/maps?q=${la},${ln}`;
+
+      if (!mapInstance) {
+        const googleRoadmap = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+          maxZoom: 20,
+          attribution: '&copy; Google Maps'
+        });
+
+        const googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+          maxZoom: 20,
+          attribution: '&copy; Google Maps Satellite'
+        });
+
+        mapInstance = L.map('map-sekolah', {
+          center: [la, ln],
+          zoom: 17,
+          layers: [googleHybrid]
+        });
+
+        L.control.layers(
+          { 'Satelit': googleHybrid, 'Peta': googleRoadmap },
+          null,
+          { collapsed: false, position: 'topright' }
+        ).addTo(mapInstance);
+
+        mapMarker = L.marker([la, ln], { draggable: true, icon: googleRedPin }).addTo(mapInstance);
+        mapCircle = L.circle([la, ln], {
+          radius: rad,
+          color: '#2563eb',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.22
+        }).addTo(mapInstance);
+
+        mapMarker.on('dragend', () => {
+          const pos = mapMarker.getLatLng();
+          updatePetaDanLink(pos.lat, pos.lng, inpRadius.value, false);
+        });
+
+        mapInstance.on('click', (e) => {
+          updatePetaDanLink(e.latlng.lat, e.latlng.lng, inpRadius.value, false);
+        });
+      } else {
+        mapMarker.setLatLng([la, ln]);
+        mapCircle.setLatLng([la, ln]);
+        mapCircle.setRadius(rad);
+        if (geserPeta) mapInstance.setView([la, ln], 18);
+      }
+    }
+
+    inpLat.addEventListener('change', () => updatePetaDanLink(inpLat.value, inpLng.value, inpRadius.value, true));
+    inpLng.addEventListener('change', () => updatePetaDanLink(inpLat.value, inpLng.value, inpRadius.value, true));
+    inpRadius.addEventListener('input', () => {
+      if (mapCircle) mapCircle.setRadius(parseInt(inpRadius.value, 10) || 100);
+    });
+
+    async function cariLokasiDiPeta() {
+      const kataKunci = document.getElementById('input-cari-peta').value.trim();
+      if (!kataKunci) return;
+
+      const btnCari = document.getElementById('btn-cari-peta');
+      btnCari.textContent = '...';
+      btnCari.disabled = true;
+
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(kataKunci + ' Indonesia')}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          updatePetaDanLink(data[0].lat, data[0].lon, inpRadius.value, true);
+          tampilkanNotifPengaturan(`Lokasi ditemukan: ${data[0].display_name}. Geser pin merah tepat ke atap gedung sekolah.`, 'sukses');
+        } else {
+          tampilkanNotifPengaturan('Lokasi tidak ditemukan. Coba ketik nama desa atau kecamatan terdekat.', 'error');
+        }
+      } catch {
+        tampilkanNotifPengaturan('Gagal mencari lokasi. Periksa koneksi internet Anda.', 'error');
+      } finally {
+        btnCari.textContent = 'Cari';
+        btnCari.disabled = false;
+      }
+    }
+
+    document.getElementById('btn-cari-peta').addEventListener('click', cariLokasiDiPeta);
+    document.getElementById('input-cari-peta').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        cariLokasiDiPeta();
+      }
+    });
+
+    document.getElementById('btn-ekstrak-link').addEventListener('click', () => {
+      const url = document.getElementById('input-link-maps').value.trim();
+      const matchAt = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      const matchQ = url.match(/[?&](?:q|ll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+      const match3d = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+      const hasil = matchAt || matchQ || match3d;
+
+      if (hasil) {
+        updatePetaDanLink(hasil[1], hasil[2], inpRadius.value, true);
+        tampilkanNotifPengaturan('Titik koordinat berhasil diambil dari tautan Google Maps.', 'sukses');
+      } else {
+        tampilkanNotifPengaturan('Koordinat tidak terbaca dari link tersebut. Gunakan kotak pencarian tempat atau klik langsung pada peta.', 'error');
+      }
+    });
+
+    document.getElementById('btn-gps-sekarang').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        tampilkanNotifPengaturan('Browser tidak mendukung GPS.', 'error');
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          updatePetaDanLink(pos.coords.latitude, pos.coords.longitude, inpRadius.value, true);
+          tampilkanNotifPengaturan('Titik lokasi GPS Anda saat ini berhasil dipasang.', 'sukses');
+        },
+        () => tampilkanNotifPengaturan('Izin lokasi GPS ditolak browser.', 'error'),
+        { enableHighAccuracy: true }
+      );
+    });
+
+    const inputLogoFile = document.getElementById('input-logo-file');
+    inputLogoFile.addEventListener('change', () => {
+      const file = inputLogoFile.files[0];
+      if (!file) return;
+      document.getElementById('nama-file-logo').textContent = file.name;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const pLogo = document.getElementById('preview-logo');
+        pLogo.src = e.target.result;
+        pLogo.classList.remove('hidden');
+        document.getElementById('preview-default-logo').classList.add('hidden');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    const { data: dataPengaturan } = await supabase
+      .from('pengaturan_sekolah')
+      .select('*')
+      .eq('id', 1)
+      .single();
+
+    pengaturanSaatIni = dataPengaturan || {};
+    terapkanIdentitasKeUI(pengaturanSaatIni);
+
+    document.getElementById('input-nama-aplikasi').value = pengaturanSaatIni.nama_aplikasi || 'ABSENSI GURU';
+    document.getElementById('input-nama-sekolah').value = pengaturanSaatIni.nama_sekolah || 'MTs. MIFTAHUL ULUM';
+    document.getElementById('input-link-maps').value = pengaturanSaatIni.link_maps || '';
+    document.getElementById('input-radius').value = pengaturanSaatIni.radius_meter || 100;
+
+    renderTabelJadwalForm(pengaturanSaatIni.jadwal_harian || defaultJadwal);
+    updatePetaDanLink(
+      pengaturanSaatIni.latitude ?? -7.7543,
+      pengaturanSaatIni.longitude ?? 113.2159,
+      pengaturanSaatIni.radius_meter ?? 100,
+      true
+    );
+
+    const settingsAlert = document.getElementById('settings-alert');
+    function tampilkanNotifPengaturan(teks, tipe = 'sukses') {
+      settingsAlert.textContent = teks;
+      settingsAlert.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800', 'bg-red-50', 'border-red-200', 'text-red-700');
+      if (tipe === 'sukses') {
+        settingsAlert.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+      } else {
+        settingsAlert.classList.add('bg-red-50', 'border-red-200', 'text-red-700');
+      }
+      settingsAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    document.getElementById('form-pengaturan').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btnSimpan = document.getElementById('btn-simpan-pengaturan');
+      const txtSimpan = document.getElementById('text-simpan-pengaturan');
+      btnSimpan.disabled = true;
+      txtSimpan.textContent = 'Menyimpan...';
+
+      try {
+        let logoUrlFinal = pengaturanSaatIni.logo_url || '';
+        const fileLogo = inputLogoFile.files[0];
+
+        if (fileLogo) {
+          if (fileLogo.size > 2 * 1024 * 1024) throw new Error('Ukuran file logo maksimal 2MB.');
+          const ekstensi = fileLogo.name.split('.').pop();
+          const namaFile = `logo-sekolah-${Date.now()}.${ekstensi}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('logo-sekolah')
+            .upload(namaFile, fileLogo, { upsert: true });
+          if (uploadError) throw uploadError;
+
+          const { data: publicUrlData } = supabase.storage
+            .from('logo-sekolah')
+            .getPublicUrl(namaFile);
+          logoUrlFinal = publicUrlData.publicUrl;
+        }
+
+        const jadwalBaru = {};
+        document.querySelectorAll('#tbody-jadwal-harian tr').forEach(row => {
+          const hari = row.dataset.hari;
+          jadwalBaru[hari] = {
+            aktif: row.querySelector('.chk-aktif').checked,
+            masuk: row.querySelector('.inp-masuk').value || '07:20',
+            pulang: row.querySelector('.inp-pulang').value || '12:10'
+          };
+        });
+
+        const jadwalHariIniBaru = jadwalBaru[namaHariIni] || { masuk: '07:20', pulang: '12:10' };
+
+        const payloadUpdate = {
+          nama_aplikasi: document.getElementById('input-nama-aplikasi').value.trim(),
+          nama_sekolah: document.getElementById('input-nama-sekolah').value.trim(),
+          logo_url: logoUrlFinal,
+          jadwal_harian: jadwalBaru,
+          jam_masuk: `${jadwalHariIniBaru.masuk}:00`,
+          jam_pulang: `${jadwalHariIniBaru.pulang}:00`,
+          latitude: parseFloat(inpLat.value),
+          longitude: parseFloat(inpLng.value),
+          radius_meter: parseInt(inpRadius.value, 10) || 100,
+          link_maps: document.getElementById('input-link-maps').value.trim(),
+          updated_at: new Date().toISOString()
+        };
+
+        const { error: updateError } = await supabase
+          .from('pengaturan_sekolah')
+          .update(payloadUpdate)
+          .eq('id', 1);
+        if (updateError) throw updateError;
+
+        pengaturanSaatIni = { ...pengaturanSaatIni, ...payloadUpdate };
+        terapkanIdentitasKeUI(pengaturanSaatIni);
+        tampilkanNotifPengaturan('Semua pengaturan berhasil disimpan!', 'sukses');
+      } catch (err) {
+        tampilkanNotifPengaturan(`Gagal menyimpan pengaturan: ${err.message}`, 'error');
+      } finally {
+        btnSimpan.disabled = false;
+        txtSimpan.textContent = 'Simpan Semua Pengaturan';
+      }
+    });
+
+    // ================= 6. TAMBAH & KELOLA AKUN GURU =================
+    let semuaGuru = [];
+    const guruAlert = document.getElementById('guru-alert');
+
+    function tampilkanNotifGuru(teks, tipe = 'sukses') {
+      guruAlert.textContent = teks;
+      guruAlert.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800', 'bg-red-50', 'border-red-200', 'text-red-700');
+      if (tipe === 'sukses') {
+        guruAlert.classList.add('bg-emerald-50', 'border-emerald-200', 'text-emerald-800');
+      } else {
+        guruAlert.classList.add('bg-red-50', 'border-red-200', 'text-red-700');
+      }
+    }
+
+    document.getElementById('toggle-guru-pass').addEventListener('click', () => {
+      const inp = document.getElementById('guru-password');
+      inp.type = inp.type === 'password' ? 'text' : 'password';
+    });
+
+    function renderTabelDaftarGuru(filterKata = '') {
+      const tbody = document.getElementById('tbody-daftar-guru');
+      const kata = filterKata.toLowerCase();
+      const hasil = semuaGuru.filter(g =>
+        (g.nama_lengkap || '').toLowerCase().includes(kata) ||
+        (g.email || '').toLowerCase().includes(kata) ||
+        (g.jabatan || '').toLowerCase().includes(kata)
+      );
+
+      document.getElementById('jumlah-guru-badge').textContent = semuaGuru.length;
+
+      if (hasil.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400">Belum ada akun guru yang sesuai.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = hasil.map((g, i) => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="py-3 px-3 text-slate-500">${i + 1}</td>
+          <td class="py-3 px-3">
+            <p class="font-bold text-slate-800">${g.nama_lengkap}</p>
+            <p class="text-[11px] text-slate-400">${g.jabatan || 'Guru'}${g.nip ? ` • NIP: ${g.nip}` : ''}</p>
+          </td>
+          <td class="py-3 px-3 font-medium text-blue-700">${g.email || '-'}</td>
+          <td class="py-3 px-3 text-center">
+            <button type="button" onclick="hapusGuru('${g.id}', '${g.nama_lengkap.replace(/'/g, "\\'")}')"
+              class="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white text-[11px] font-semibold border border-rose-200 transition">
+              Hapus
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('cari-guru-input').addEventListener('input', (e) => {
+      renderTabelDaftarGuru(e.target.value);
+    });
+
+    window.hapusGuru = async function(idGuru, namaGuru) {
+      if (!confirm(`Yakin ingin menghapus akun guru "${namaGuru}"? Data absensinya juga akan terhapus.`)) return;
+
+      const { error } = await supabase.rpc('hapus_akun_guru', { target_user_id: idGuru });
+      if (error) {
+        tampilkanNotifGuru(`Gagal menghapus akun: ${error.message}`, 'error');
+        return;
+      }
+
+      tampilkanNotifGuru(`Akun guru "${namaGuru}" berhasil dihapus.`, 'sukses');
+      await muatUlangDataDashboardDanGuru();
+    };
+
+    document.getElementById('form-tambah-guru').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('btn-simpan-guru');
+      btn.disabled = true;
+      btn.textContent = 'Mendaftarkan Akun...';
+
+      const nama = document.getElementById('guru-nama').value.trim();
+      const nip = document.getElementById('guru-nip').value.trim();
+      const jabatan = document.getElementById('guru-jabatan').value.trim() || 'Guru Mata Pelajaran';
+      const email = document.getElementById('guru-email').value.trim().toLowerCase();
+      const password = document.getElementById('guru-password').value;
+
+      try {
+        const { data, error } = await supabaseSignupClient.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              nama_lengkap: nama,
+              role: 'guru',
+              nip,
+              jabatan
+            }
+          }
+        });
+
+        if (error) throw error;
+        if (!data.user) throw new Error('Gagal membuat user baru di Supabase Auth.');
+
+        document.getElementById('form-tambah-guru').reset();
+        document.getElementById('guru-jabatan').value = 'Guru Mata Pelajaran';
+
+        tampilkanNotifGuru(`Akun guru "${nama}" (${email}) berhasil dibuat dan langsung siap login!`, 'sukses');
+        await muatUlangDataDashboardDanGuru();
+      } catch (err) {
+        let pesan = err.message;
+        if (pesan.includes('User already registered')) {
+          pesan = 'Email tersebut sudah terdaftar sebelumnya.';
+        } else if (pesan.includes('Password should be at least')) {
+          pesan = 'Kata sandi minimal 6 karakter.';
+        }
+        tampilkanNotifGuru(`Gagal membuat akun guru: ${pesan}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '+ Daftarkan Akun Guru';
+      }
+    });
+
+    // ================= 7. LAPORAN BULANAN, CETAK PRINTER & PDF =================
+    const selBulanLaporan = document.getElementById('filter-laporan-bulan');
+    const selTahunLaporan = document.getElementById('filter-laporan-tahun');
+    const selUkuranKertas = document.getElementById('pilih-ukuran-kertas');
+    const areaCetak = document.getElementById('area-cetak-laporan');
+    const dynamicPageStyle = document.getElementById('dynamic-page-size');
+
+    // Isi opsi tahun (tahun lalu, tahun ini, tahun depan)
+    for (let t = tahun - 1; t <= tahun + 1; t++) {
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      if (t === tahun) opt.selected = true;
+      selTahunLaporan.appendChild(opt);
+    }
+    selBulanLaporan.value = String(bulanIndex);
+
+    // Ganti ukuran kertas A4 atau F4/Folio untuk pratinjau, driver printer, dan PDF
+    function terapkanUkuranKertas() {
+      const ukuran = selUkuranKertas.value;
+      areaCetak.classList.remove('kertas-a4', 'kertas-f4');
+      if (ukuran === 'f4') {
+        areaCetak.classList.add('kertas-f4');
+        dynamicPageStyle.textContent = '@page { size: 215mm 330mm; margin: 10mm; }';
+      } else {
+        areaCetak.classList.add('kertas-a4');
+        dynamicPageStyle.textContent = '@page { size: A4 portrait; margin: 10mm; }';
+      }
+    }
+    selUkuranKertas.addEventListener('change', terapkanUkuranKertas);
+    terapkanUkuranKertas();
+
+    async function muatLaporanBulanan() {
+      const bln = parseInt(selBulanLaporan.value, 10);
+      const thn = parseInt(selTahunLaporan.value, 10);
+      const blnStr = String(bln + 1).padStart(2, '0');
+      const akhirHari = new Date(thn, bln + 1, 0).getDate();
+
+      const tglAwal = `${thn}-${blnStr}-01`;
+      const tglAkhir = `${thn}-${blnStr}-${String(akhirHari).padStart(2, '0')}`;
+      const labelPeriode = `${namaBulanID[bln]} ${thn}`;
+
+      document.getElementById('kop-periode-laporan').textContent = labelPeriode;
+      const tbodyLaporan = document.getElementById('tbody-laporan-cetak');
+      tbodyLaporan.innerHTML = `<tr><td colspan="4" class="border border-slate-800 py-6 text-center text-slate-400">Memuat data bulan ${labelPeriode}...</td></tr>`;
+
+      const { data: logBulanDipilih } = await supabase
+        .from('absensi')
+        .select('user_id, status')
+        .gte('tanggal', tglAwal)
+        .lte('tanggal', tglAkhir);
+
+      const logs = logBulanDipilih || [];
+
+      if (semuaGuru.length === 0) {
+        tbodyLaporan.innerHTML = `<tr><td colspan="4" class="border border-slate-800 py-6 text-center text-slate-400">Belum ada data guru terdaftar.</td></tr>`;
+        return;
+      }
+
+      tbodyLaporan.innerHTML = semuaGuru.map((guru, index) => {
+        const logGuru = logs.filter(l => l.user_id === guru.id);
+        const totalHadir = logGuru.filter(l => l.status === 'Hadir' || l.status === 'Terlambat').length;
+        const totalIzin = logGuru.filter(l => l.status === 'Izin' || l.status === 'Sakit').length;
+
+        return `
+          <tr>
+            <td class="border border-slate-800 py-2 px-3 text-center">${index + 1}</td>
+            <td class="border border-slate-800 py-2 px-4 font-medium">${guru.nama_lengkap}</td>
+            <td class="border border-slate-800 py-2 px-4 text-center font-semibold">${totalHadir} Hari</td>
+            <td class="border border-slate-800 py-2 px-4 text-center font-semibold">${totalIzin} Hari</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    document.getElementById('btn-muat-laporan').addEventListener('click', muatLaporanBulanan);
+    selBulanLaporan.addEventListener('change', muatLaporanBulanan);
+    selTahunLaporan.addEventListener('change', muatLaporanBulanan);
+
+    // Tombol Cetak Langsung ke Driver Printer
+    document.getElementById('btn-cetak-printer').addEventListener('click', () => {
+      terapkanUkuranKertas();
+      window.print();
+    });
+
+    // Tombol Download File PDF Siap Cetak
+    document.getElementById('btn-download-pdf').addEventListener('click', async () => {
+      const btnPdf = document.getElementById('btn-download-pdf');
+      const txtPdf = document.getElementById('txt-download-pdf');
+      btnPdf.disabled = true;
+      txtPdf.textContent = 'Membuat PDF...';
+
+      try {
+        const bln = parseInt(selBulanLaporan.value, 10);
+        const thn = parseInt(selTahunLaporan.value, 10);
+        const namaFilePdf = `Rekap_Absensi_Guru_${namaBulanID[bln]}_${thn}.pdf`;
+        const isF4 = selUkuranKertas.value === 'f4';
+
+        const opsiPdf = {
+          margin: [8, 8, 8, 8],
+          filename: namaFilePdf,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: {
+            unit: 'mm',
+            format: isF4 ? [215, 330] : 'a4',
+            orientation: 'portrait'
+          }
+        };
+
+        await html2pdf().set(opsiPdf).from(areaCetak).save();
+      } finally {
+        btnPdf.disabled = false;
+        txtPdf.textContent = 'Download PDF';
+      }
+    });
+
+    // ================= 8. MUAT DATA DASHBOARD & GURU =================
+    let chartInstance = null;
+
+    async function muatUlangDataDashboardDanGuru() {
+      const [{ data: daftarGuru }, { data: dataAbsensiBulan }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, nama_lengkap, email, nip, jabatan')
+          .eq('role', 'guru')
+          .order('nama_lengkap', { ascending: true }),
+        supabase
+          .from('absensi')
+          .select('*')
+          .gte('tanggal', awalBulanISO)
+          .lte('tanggal', akhirBulanISO)
+          .order('tanggal', { ascending: false })
+      ]);
+
+      semuaGuru = daftarGuru || [];
+      renderTabelDaftarGuru(document.getElementById('cari-guru-input').value);
+
+      const absensiBulan = dataAbsensiBulan || [];
+      const jmlTepatWaktu = absensiBulan.filter(a => a.status === 'Hadir').length;
+      const jmlTerlambat = absensiBulan.filter(a => a.status === 'Terlambat').length;
+      const jmlTotalHadir = jmlTepatWaktu + jmlTerlambat;
+      const jmlIzinSakit = absensiBulan.filter(a => a.status === 'Izin' || a.status === 'Sakit').length;
+      const jmlAlpa = absensiBulan.filter(a => a.status === 'Alpa').length;
+
+      const absensiHariIni = absensiBulan.filter(a => a.tanggal === hariIniISO);
+      const jmlMasukHariIni = absensiHariIni.filter(a => a.jam_masuk).length;
+      const jmlPulangHariIni = absensiHariIni.filter(a => a.jam_pulang).length;
+
+      document.getElementById('stat-hadir-bulan').textContent = jmlTotalHadir;
+      document.getElementById('stat-masuk-hari-ini').innerHTML = `${jmlMasukHariIni} <span class="text-xs font-medium">Guru</span>`;
+      document.getElementById('stat-pulang-hari-ini').innerHTML = `${jmlPulangHariIni} <span class="text-xs font-medium">Guru</span>`;
+      document.getElementById('stat-terlambat-bulan').textContent = jmlTerlambat;
+      document.getElementById('stat-izinsakit-bulan').textContent = jmlIzinSakit;
+      document.getElementById('stat-total-guru').textContent = `Dari ${semuaGuru.length} Guru terdaftar`;
+
+      const totalLog = jmlTepatWaktu + jmlTerlambat + jmlIzinSakit + jmlAlpa;
+      document.getElementById('donut-total').textContent = totalLog;
+      document.getElementById('legend-hadir').textContent = jmlTepatWaktu;
+      document.getElementById('legend-terlambat').textContent = jmlTerlambat;
+      document.getElementById('legend-izinsakit').textContent = jmlIzinSakit;
+      document.getElementById('legend-alpa').textContent = jmlAlpa;
+
+      if (chartInstance) chartInstance.destroy();
+      chartInstance = new Chart(document.getElementById('chartRingkasan').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Tepat Waktu', 'Terlambat', 'Izin/Sakit', 'Alpa'],
+          datasets: [{
+            data: totalLog > 0 ? [jmlTepatWaktu, jmlTerlambat, jmlIzinSakit, jmlAlpa] : [1, 0, 0, 0],
+            backgroundColor: totalLog > 0
+              ? ['#10b981', '#f59e0b', '#0ea5e9', '#f43f5e']
+              : ['#e2e8f0', '#e2e8f0', '#e2e8f0', '#e2e8f0'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          cutout: '70%',
+          plugins: { legend: { display: false }, tooltip: { enabled: totalLog > 0 } }
+        }
+      });
+
+      const formatJam = (waktu) => waktu ? `${waktu.slice(0, 5)} WIB` : '-';
+      const badgeStatus = (status) => {
+        const warna = {
+          'Hadir': 'bg-emerald-100 text-emerald-700',
+          'Terlambat': 'bg-amber-100 text-amber-700',
+          'Izin': 'bg-sky-100 text-sky-700',
+          'Sakit': 'bg-indigo-100 text-indigo-700',
+          'Alpa': 'bg-rose-100 text-rose-700'
+        };
+        return `<span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${warna[status] || 'bg-slate-100 text-slate-600'}">${status}</span>`;
+      };
+
+      const tbodyHariIni = document.getElementById('tabel-hari-ini');
+      if (semuaGuru.length === 0) {
+        tbodyHariIni.innerHTML = `<tr><td colspan="4" class="py-8 text-center text-slate-400">Belum ada akun guru terdaftar.</td></tr>`;
+      } else {
+        tbodyHariIni.innerHTML = semuaGuru.map(guru => {
+          const logHariIni = absensiHariIni.find(a => a.user_id === guru.id);
+          const jarakMasukInfo = logHariIni?.jarak_masuk_meter != null ? `<span class="block text-[10px] text-slate-400">(${logHariIni.jarak_masuk_meter} m)</span>` : '';
+          const jarakPulangInfo = logHariIni?.jarak_pulang_meter != null ? `<span class="block text-[10px] text-slate-400">(${logHariIni.jarak_pulang_meter} m)</span>` : '';
+
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-2.5 px-3 font-medium text-slate-800">${guru.nama_lengkap}</td>
+              <td class="py-2.5 px-3 text-center font-semibold ${logHariIni?.jam_masuk ? 'text-emerald-700' : 'text-slate-400'}">
+                ${formatJam(logHariIni?.jam_masuk)}${jarakMasukInfo}
+              </td>
+              <td class="py-2.5 px-3 text-center font-semibold ${logHariIni?.jam_pulang ? 'text-violet-700' : 'text-slate-400'}">
+                ${formatJam(logHariIni?.jam_pulang)}${jarakPulangInfo}
+              </td>
+              <td class="py-2.5 px-3 text-center">
+                ${logHariIni ? badgeStatus(logHariIni.status) : '<span class="text-slate-400 text-[11px]">Belum Absen</span>'}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      const tbodyRekapBulan = document.getElementById('tabel-rekap-bulan');
+      if (semuaGuru.length === 0) {
+        tbodyRekapBulan.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Belum ada data guru untuk direkap.</td></tr>`;
+      } else {
+        tbodyRekapBulan.innerHTML = semuaGuru.map((guru, idx) => {
+          const logGuru = absensiBulan.filter(a => a.user_id === guru.id);
+          const totalHadirGuru = logGuru.filter(a => a.status === 'Hadir' || a.status === 'Terlambat').length;
+          const terlambatGuru = logGuru.filter(a => a.status === 'Terlambat').length;
+          const izinSakitGuru = logGuru.filter(a => a.status === 'Izin' || a.status === 'Sakit').length;
+          const logTerakhir = logGuru[0];
+
+          return `
+            <tr class="hover:bg-slate-50 transition">
+              <td class="py-3 px-3.5 text-slate-500">${idx + 1}</td>
+              <td class="py-3 px-3.5 font-semibold text-slate-800">${guru.nama_lengkap}</td>
+              <td class="py-3 px-3.5 text-center">
+                <span class="px-2.5 py-0.5 rounded-md bg-blue-50 text-blue-700 font-bold">${totalHadirGuru} Hari</span>
+              </td>
+              <td class="py-3 px-3.5 text-center font-medium text-amber-600">${terlambatGuru}</td>
+              <td class="py-3 px-3.5 text-center font-medium text-sky-600">${izinSakitGuru}</td>
+              <td class="py-3 px-3.5 text-center text-slate-700 font-medium">${formatJam(logTerakhir?.jam_masuk)}</td>
+              <td class="py-3 px-3.5 text-center text-slate-700 font-medium">${formatJam(logTerakhir?.jam_pulang)}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    await muatUlangDataDashboardDanGuru();
+  </script>
+</body>
+</html>
